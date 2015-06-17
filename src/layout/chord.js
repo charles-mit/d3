@@ -7,6 +7,7 @@ d3.layout.chord = function() {
       chords,
       groups,
       matrix,
+      sizes,
       n,
       padding = 0,
       sortGroups,
@@ -26,12 +27,22 @@ d3.layout.chord = function() {
 
     chords = [];
     groups = [];
-
+    var matrixsum = [];
     // Compute the sum.
-    k = 0, i = -1; while (++i < n) {
-      x = 0, j = -1; while (++j < n) {
-        x += matrix[i][j];
-      }
+    k = 0, i = -1; 
+    while (++i < n) {
+      x = 0, j = -1;
+	    if (sizes !== null && sizes !== undefined)  {
+		    matrixsum.push(0);
+		    x += sizes[i];
+		    while (++j < n) {
+		      matrixsum[i]+=matrix[i][j];
+		    }
+	    } else {
+		    while (++j < n) {
+		      x += matrix[i][j];
+		    }
+	    }
       groupSums.push(x);
       subgroupIndex.push(d3.range(n));
       k += x;
@@ -60,21 +71,33 @@ d3.layout.chord = function() {
 
     // Compute the start and end angle for each group and subgroup.
     // Note: Opera has a bug reordering object literal properties!
-    x = 0, i = -1; while (++i < n) {
-      x0 = x, j = -1; while (++j < n) {
-        var di = groupIndex[i],
-            dj = subgroupIndex[di][j],
-            v = matrix[di][dj],
-            a0 = x,
-            a1 = x += v * k;
+    x = 0, i = -1; 
+    while (++i < n) {
+      x0 = x, j = -1; 
+      while (++j < n) {
+        var di = groupIndex[i], dj = subgroupIndex[di][j];
+  		  var v = matrix[di][dj];
+  		  var v2 = matrix[di][dj];
+  		  if (sizes !== null && sizes !== undefined) {
+    			if ( matrixsum[i] == undefined || matrixsum[i] == 0)  {
+    			  v = 0;
+    			} else {
+    				v = (( matrix[di][dj] / matrixsum[i]) * sizes[i]);
+    			}
+  		  }
+  		  var a0 = x, a1 = x += v * k;
         subgroups[di + "-" + dj] = {
-          index: di,
-          subindex: dj,
-          startAngle: a0,
-          endAngle: a1,
-          value: v
+            index: di,
+            subindex: dj,
+            startAngle: a0,
+            endAngle: a1,
+            value: v2
         };
       }
+		
+		  if (sizes !== null && sizes !== undefined && (x - x0) <= 0 && sizes[i] > 0 ) {
+			  x+= sizes[i]*k;
+		  }
       groups[di] = {
         index: di,
         startAngle: x0,
@@ -107,7 +130,12 @@ d3.layout.chord = function() {
           (b.source.value + b.target.value) / 2);
     });
   }
-
+	
+	chord.sizes = function(x) {
+      if (!arguments.length) return sizes;
+      sizes = x;
+  };
+    
   chord.matrix = function(x) {
     if (!arguments.length) return matrix;
     n = (matrix = x) && matrix.length;
